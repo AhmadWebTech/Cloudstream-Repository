@@ -5,6 +5,7 @@ import com.lagradost.cloudstream3.LoadResponse.Companion.addMalId
 import com.lagradost.cloudstream3.utils.ExtractorLink
 import com.lagradost.cloudstream3.utils.loadExtractor
 import org.jsoup.nodes.Element
+import org.jsoup.nodes.Document
 
 class Lodynet : MainAPI() {
     override var lang = "ar"
@@ -25,8 +26,7 @@ class Lodynet : MainAPI() {
             null,
             posterUrl,
             null,
-            null,
-            posterHeaders = cfKiller.getCookieHeaders(alternativeUrl).toMap()
+            null
         )
     }
 
@@ -74,8 +74,8 @@ class Lodynet : MainAPI() {
                 episodes.add(
                     Episode(
                         el.attr("href"),
-                        el.text(),
-                        getSeasonFromString(el.select(".BlockTitle").text()),
+                        el.select(".BlockTitle").text(),
+                        null,
                         null
                     )
                 )
