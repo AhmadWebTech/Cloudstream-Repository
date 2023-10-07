@@ -4,8 +4,11 @@ import com.lagradost.cloudstream3.*
 import com.lagradost.cloudstream3.LoadResponse.Companion.addMalId
 import com.lagradost.cloudstream3.utils.ExtractorLink
 import com.lagradost.cloudstream3.utils.loadExtractor
+import com.lagradost.cloudstream3.utils.Qualities
 import org.jsoup.nodes.Element
 import org.jsoup.nodes.Document
+import java.util.regex.Pattern
+import java.util.regex.Matcher
 
 class Lodynet : MainAPI() {
     override var lang = "ar"
@@ -104,7 +107,7 @@ class Lodynet : MainAPI() {
     private fun cleanTitle(title: String): String {
         return title.replace("فيلم|مترجم|مسلسل|مشاهدة".toRegex(), "")
         .replace("التايلاندي|الصيني|عربي|للعربي|الكوري|حصرياً".toRegex(), "")
-        // .replace("عربي|للعربي|الكوري|الأكشن|والرعب|الرومانسية|والميلودراما||والدراما|والخيال|والإثارة|الإثارة|المغامرة|والمغامرة|والخيال العلمي|الانيميشن|و الفانتازيا".toRegex(), "")
+        .replace("الأكشن|والرعب|الرومانسية|والميلودراما||والدراما|والخيال|والإثارة|الإثارة|المغامرة|والمغامرة|والخيال العلمي|الانيميشن|و الفانتازيا".toRegex(), "")
         .trim()
     }
 
@@ -143,8 +146,39 @@ class Lodynet : MainAPI() {
         callback: (ExtractorLink) -> Unit
     ): Boolean {
         val doc = app.get(data).document
+        val iframeNameMap = mapOf(
+            "uqload.io" to "Uqload",
+            "wishfast.top" to "Playersb",
+            "govad.xyz" to "Govid",
+            "vadbam.net" to "Bom-ser",
+            "vidlo.us" to "ViD LO",
+            "viidshar.com" to "Vid Tv"
+        )
         doc.select("ul.ServersList > li").apmap {
-            loadExtractor(it.attr("data-embed").replace("ok.ru/video/", "ok.ru/videoembed/"), data, subtitleCallback, callback)
+            val iframeUrl = it.attr("data-embed")
+            val iframeDomain = iframeNameMap.keys.firstOrNull { iframeUrl.contains(it) }
+
+            if (iframeUrl.contains(iframeDomain.toString())) {
+                val iframeDoc = app.get(iframeUrl).document
+                val iframeName = iframeNameMap[iframeDomain]
+
+                val regexPattern = Pattern.compile("sources:\\s*\\[\\{[^}]*?file:\"(.*?)\"", Pattern.DOTALL)
+                val matcher = regexPattern.matcher(iframeDoc.html())
+                while (matcher.find()) {
+                    val videoUrl = matcher.group(1)
+                    callback.invoke(
+                        ExtractorLink(
+                            this.name,
+                            iframeName.toString(),
+                            videoUrl,
+                            this.mainUrl,
+                            Qualities.Unknown.value,
+                        )
+                    )
+                }
+            } else {
+                loadExtractor(iframeUrl.replace("ok.ru/video/", "ok.ru/videoembed/"), data, subtitleCallback, callback)
+            }
         }
         return true
     }
